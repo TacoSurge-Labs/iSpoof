@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>iSpoof</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root {
+    --bg-light: #f5f5f7;
+    --card-light: rgba(255,255,255,0.8);
+    --text-light: #1d1d1f;
+    --accent: #0071e3;
+
+    --bg-dark: #000000;
+    --card-dark: rgba(28,28,30,0.8);
+    --text-dark: #f5f5f7;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    background: var(--bg-light);
+    color: var(--text-light);
+    transition: background 0.4s ease, color 0.4s ease;
+}
+
+body.dark {
+    background: var(--bg-dark);
+    color: var(--text-dark);
+}
+
+.wrapper {
+    max-width: 900px;
+    margin: auto;
+    padding: 80px 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 60px;
+}
+
+header h1 {
+    font-size: 56px;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(90deg, #0071e3, #00c6ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+header p {
+    font-size: 20px;
+    opacity: 0.7;
+    margin-top: 10px;
+}
+
+.toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.card {
+    backdrop-filter: blur(20px);
+    background: var(--card-light);
+    padding: 40px;
+    border-radius: 24px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+    transition: background 0.4s ease;
+}
+
+body.dark .card {
+    background: var(--card-dark);
+}
+
+input[type="file"],
+input[type="text"] {
+    width: 100%;
+    padding: 14px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.1);
+    font-size: 16px;
+    background: white;
+}
+
+body.dark input {
+    background: #1c1c1e;
+    color: white;
+    border: 1px solid #333;
+}
+
+button {
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.25s ease;
+}
+
+.primary {
+    background: var(--accent);
+    color: white;
+}
+
+.primary:hover {
+    opacity: 0.85;
+}
+
+.secondary {
+    background: rgba(0,0,0,0.05);
+}
+
+body.dark .secondary {
+    background: rgba(255,255,255,0.08);
+    color: white;
+}
+
+.status {
+    margin-top: 20px;
+    font-size: 14px;
+    opacity: 0.7;
+    text-align: center;
+}
+
+.version-box {
+    display: none;
+    margin-top: 20px;
+}
+
+.howto {
+    margin-top: 60px;
+    font-size: 15px;
+    line-height: 1.6;
+    opacity: 0.8;
+}
+</style>
+</head>
+<body>
+
+<div class="toggle" onclick="toggleDarkMode()">Toggle Dark Mode</div>
+
+<div class="wrapper">
+
+<header>
+    <h1>iSpoof</h1>
+    <p>Modify Minimum iOS Version Inside Any IPA</p>
+</header>
+
+<div class="card">
+
+<input type="file" id="ipaInput" accept=".ipa">
+<button class="secondary" onclick="loadIPA()">Extract IPA</button>
+
+<div class="version-box" id="versionBox">
+    <label>Minimum iOS Version Required</label>
+    <input type="text" id="minVersion" placeholder="e.g. 14.0">
+    <button class="primary" onclick="rebuildIPA()">Rebuild & Download</button>
+</div>
+
+<div class="status" id="status"></div>
+
+</div>
+
+<div class="howto">
+<h3>How to Use</h3>
+<p>
+1. Upload your IPA file.<br>
+2. Click “Extract IPA” to read its configuration.<br>
+3. Modify the Minimum iOS Version value.<br>
+4. Click “Rebuild & Download” and the modified IPA will download automatically.<br><br>
+Note: The rebuilt IPA will have an invalid signature and must be re-signed before installing on a device.
+</p>
+</div>
+
+</div>
+
+<script>
+
+if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.body.classList.add("dark");
+}
+
+function toggleDarkMode() {
+    document.body.classList.toggle("dark");
+}
+
+let zipInstance = null;
+let plistPath = null;
+let originalPlist = null;
+
+async function loadIPA() {
+    const fileInput = document.getElementById("ipaInput");
+    const status = document.getElementById("status");
+
+    if (!fileInput.files.length) {
+        alert("Select an IPA file first.");
+        return;
+    }
+
+    status.innerText = "Extracting IPA...";
+
+    const file = fileInput.files[0];
+    const arrayBuffer = await file.arrayBuffer();
+    zipInstance = await JSZip.loadAsync(arrayBuffer);
+
+    const files = Object.keys(zipInstance.files);
+
+    plistPath = files.find(f =>
+        f.startsWith("Payload/") &&
+        f.endsWith(".app/Info.plist")
+    );
+
+    if (!plistPath) {
+        status.innerText = "Info.plist not found.";
+        return;
+    }
+
+    originalPlist = await zipInstance.file(plistPath).async("text");
+
+    const match = originalPlist.match(
+        /<key>MinimumOSVersion<\/key>\s*<string>(.*?)<\/string>/
+    );
+
+    if (!match) {
+        status.innerText = "MinimumOSVersion not found.";
+        return;
+    }
+
+    document.getElementById("minVersion").value = match[1];
+    document.getElementById("versionBox").style.display = "block";
+
+    status.innerText = "IPA loaded successfully.";
+}
+
+async function rebuildIPA() {
+    const status = document.getElementById("status");
+    const newVersion = document.getElementById("minVersion").value.trim();
+
+    if (!newVersion) {
+        alert("Enter a valid version.");
+        return;
+    }
+
+    status.innerText = "Updating and rebuilding IPA...";
+
+    const updatedPlist = originalPlist.replace(
+        /(<key>MinimumOSVersion<\/key>\s*<string>)(.*?)(<\/string>)/,
+        `$1${newVersion}$3`
+    );
+
+    zipInstance.file(plistPath, updatedPlist);
+
+    const newBlob = await zipInstance.generateAsync({
+        type: "blob",
+        compression: "DEFLATE"
+    });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(newBlob);
+    link.download = "iSpoof_Modified.ipa";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    status.innerText = "Download started. IPA must be re-signed before installation.";
+}
+
+</script>
+
+</body>
+</html>
