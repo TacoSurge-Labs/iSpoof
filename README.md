@@ -11,5 +11,5 @@ Note: The rebuilt IPA will have an invalid signature and must be re-signed befor
 #
 
 ##Screenshot
-![iSpoof; Modify Minimum iOS Version Inside Any IPA](screenshot.png)
+![iSpoof; Modify Minimum iOS Version Inside Any IPA](Screenshot.png)
 
