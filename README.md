@@ -10,6 +10,6 @@ This site helps you mod apps to install on unsupported devices. For example, an 
 Note: The rebuilt IPA will have an invalid signature and must be re-signed before installing on a device.
 #
 
-##Screenshot
+## Screenshot
 ![iSpoof; Modify Minimum iOS Version Inside Any IPA](Screenshot.png)
 
