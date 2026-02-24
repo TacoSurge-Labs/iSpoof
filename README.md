@@ -1,7 +1,7 @@
-## iSpoof
+# iSpoof
 This site helps you mod apps to install on unsupported devices. For example, an app may require iOS 26, but this site can help you mod it to run on iOS 16.
 
-# How to Use
+## How to Use
 1. Upload your IPA file.
 2. Click “Extract IPA” to read its configuration.
 3. Modify the Minimum iOS Version value.
